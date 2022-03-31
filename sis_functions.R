@@ -33,7 +33,6 @@ compartment_mod=function(G,beta,mu,init_infec=0.1,tmax=100){
   infect_share_df$infect_share[1]<-infect_share(G)
   
   for (t in 2:(tmax+1)){
-    
     current_infect=which(V(G)$infect==1)
     current_susp=which(V(G)$infect==0)
     #Simulating Recovery 
@@ -52,8 +51,28 @@ compartment_mod=function(G,beta,mu,init_infec=0.1,tmax=100){
     V(G)$infect2=NA
     
     infect_share_df$infect_share[t]=infect_share(G)
+    
+    if(infect_share(G)==1){
+      break
+    }
+    
+    #print(paste0("Time period: ", t, "|| Share: ",round(infect_share(G),3)))
   }
 
   return(infect_share_df)
  
+}
+
+infect_path=function(G,beta,mu,tmax,init_infec){
+  k_mean=mean(degree(G))
+  beta_k=k_mean*beta
+  C=init_infec/(1-init_infec-mu/beta_k)
+  q1=(1-mu/beta_k)
+  q2_fun=function(t){
+    res=(C*exp((beta_k-mu)*t))/(1+C*exp((beta_k-mu)*t))
+    return(res)
+  }
+  res_df=data.frame(t=0:tmax,infect_share=NA)
+  res_df$infect_share=q1*q2_fun(t=res_df$t)
+  return(res_df)
 }
