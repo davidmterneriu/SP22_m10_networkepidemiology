@@ -63,8 +63,13 @@ compartment_mod=function(G,beta,mu,init_infec=0.1,tmax=100){
  
 }
 
-infect_path=function(G,beta,mu,tmax,init_infec){
-  k_mean=mean(degree(G))
+infect_path=function(G,beta,mu,tmax,init_infec,kmean=NA,t_opt=NA){
+  if(is.na(kmean)){
+    k_mean=mean(degree(G))
+  }else{
+    k_mean=kmean
+  }
+ 
   beta_k=k_mean*beta
   C=init_infec/(1-init_infec-mu/beta_k)
   q1=(1-mu/beta_k)
@@ -72,7 +77,18 @@ infect_path=function(G,beta,mu,tmax,init_infec){
     res=(C*exp((beta_k-mu)*t))/(1+C*exp((beta_k-mu)*t))
     return(res)
   }
-  res_df=data.frame(t=0:tmax,infect_share=NA)
-  res_df$infect_share=q1*q2_fun(t=res_df$t)
-  return(res_df)
+  
+  if(is.na(t_opt)){
+    res_df=data.frame(t=0:tmax,infect_share=NA)
+    res_df$infect_share=q1*q2_fun(t=res_df$t)
+    return(res_df)
+  }else{
+    return(q1*q2_fun(t=t_opt))
+  }
+  
+
+}
+
+equil_outcome=function(beta,mu,avg_k){
+  return(1-mu/(beta*avg_k))
 }
