@@ -212,5 +212,36 @@ trial_data%>%
        color=TeX("Initial infection ($i_0$)"),
        title = TeX("Network SIS Dynamics varying $\\beta, \\mu$ and $i_0$"),
        subtitle = TeX("ER network with $N=100$ and $\\langle k \\rangle =10$"))+
-  theme_bw()
+  theme_bw()+
+  scale_color_viridis_d()
+
+################################################################################
+# Time to equilibrium 
+################################################################################
+
+delta=10^(-3)
+
+trial_data%>%
+  group_by(t,beta,mu,init_infec)%>%
+  summarise(avg=mean(infect_share,na.rm=T))%>%
+  ungroup()%>%
+  arrange(t)%>%
+  group_by(beta,mu,init_infec)%>%
+  mutate(cum_avg=cummean(avg),
+         avg_dif=cum_avg-lag(cum_avg,1))%>%
+  filter(is.na( avg_dif)==F)%>%
+  summarise(t_final=t[min(which(abs(avg_dif)<delta),na.rm = T)],
+            infect=cum_avg[min(which(abs(avg_dif)<delta),na.rm = T)])%>%
+  mutate(inital_frac=paste0("Initial Infection: ",init_infec),
+         mu_text=paste0("mu=",mu),
+         beta_text=paste0("beta=",beta))%>%
+  ggplot(aes(x=t_final,y=infect,color=as.factor(init_infec)))+
+  geom_point(size=2)+
+  facet_wrap(~beta_text+mu_text)+
+  labs(x=TeX("Equilibrium Time ($t^*$)"),y=TeX("Equilibrium  Share $m(t^*)$",),
+       color=TeX("Initial infection ($i_0$)"),
+       title = TeX("Network SIS Equilibrium varying $\\beta, \\mu$ and $i_0$"),
+       subtitle = TeX("ER network with $N=100$ and $\\langle k \\rangle =10$"))+
+  theme_bw()+
+  scale_color_viridis_d()
 
