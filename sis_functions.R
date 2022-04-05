@@ -92,3 +92,10 @@ infect_path=function(G,beta,mu,tmax,init_infec,kmean=NA,t_opt=NA){
 equil_outcome=function(beta,mu,avg_k){
   return(1-mu/(beta*avg_k))
 }
+
+equil_time=function(infect_data,eps=10^(-4)){
+  df1=data.frame(t=seq(1,length(infect_data)),x=infect_data)
+  df1=df1%>%mutate(cum_mean=cummean(x),
+               mean_diff=abs(cum_mean-lag(cum_mean))/(lag(cum_mean)))
+  return(df1)
+}

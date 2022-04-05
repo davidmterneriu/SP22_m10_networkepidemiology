@@ -19,7 +19,15 @@ vert_ids <- V(g)[components$membership == biggest_cluster_id]
 g1=igraph::induced_subgraph(g, vert_ids)
 
 #Simple test of simulation model and infection path
-res1=compartment_mod(G=g1,beta=0.05,mu=0.1,init_infec = 0.9)
+res1=compartment_mod(G=g1,beta=0.1,mu=0.2,init_infec = 0.9)
+equil_time(res1$infect_share)
+
+equil_time(res1$infect_share)%>%
+  ggplot(aes(x=t))+
+  geom_line(aes(y=x,color="Infect"))+
+  geom_line(aes(y=cum_mean,color="Average"))+
+  scale_color_manual(values=c("Infect"="blue","Average"="red"))
+
 res1a=infect_path(G=g1,beta=0.05,mu=0.1,init_infec = 0.9,tmax=100)
 
 
@@ -123,7 +131,7 @@ for(k in 1:length(sample_net_size)){
   }
 }
 
-
+#write_csv(trial_data,"trial_data_net_size.csv")
 trial_data%>%mutate(pred_eq=1-0.2/(0.5*avg_k))%>%
   group_by(net_size,trial)%>%
   summarise(final_share=mean(infect_share[75:100]),
@@ -131,6 +139,78 @@ trial_data%>%mutate(pred_eq=1-0.2/(0.5*avg_k))%>%
   ungroup()%>%
   mutate(dif=pred_eq-final_share)%>%
   ggplot(aes(x=as.factor(net_size),y=dif))+
-  geom_boxplot()}
+  geom_boxplot()
 
+
+trial_data%>%
+  group_by(net_size,t)%>%
+  summarise(share=mean(infect_share))%>%
+  filter(t<15)%>%
+  ggplot(aes(x=t,y=share,color=as.factor(net_size)))+
+  geom_line()}
+
+
+################################################################################
+# Vary beta, mu, initial infect
+################################################################################
+trial_data=data.frame()
+
+vary_parm=expand.grid(beta=c(0.01,0.2,0.85),mu=c(0.05,0.45,0.7),init_frac=c(0.2,0.5,0.9))%>%
+  as.data.frame()
+
+
+niter=50
+
+for(k in 1:nrow(vary_parm)){
+  
+  beta_k=vary_parm$beta[k]
+  mu_k=vary_parm$mu[k]
+  init_k=vary_parm$init_frac[k]
+
+  for(i in 1:niter ){
+    print(paste0(k, "|| Trial: ",i))
+    g=igraph::erdos.renyi.game(n=100,p.or.m = 0.1)
+    
+    components <- igraph::clusters(g, mode="weak")
+    biggest_cluster_id <- which.max(components$csize)
+    
+    # ids
+    vert_ids <- V(g)[components$membership == biggest_cluster_id]
+    
+    # subgraph
+    g1=igraph::induced_subgraph(g, vert_ids)
+    adj_1=g1%>%as_adjacency_matrix()%>%as.matrix()
+    lambda_1=eigen(adj_1)$values%>%max()
+    
+    avg_k=mean(degree(g1))
+    avg_k2=mean(degree(g1)^2)
+    
+    
+    
+    trial_data=rbind(trial_data,compartment_mod(G=g1,beta=  beta_k,mu= mu_k,
+                                                init_infec =   init_k)%>%
+                       mutate(trial=i,beta=  beta_k,mu= mu_k,
+                              init_infec =   init_k, lambda_1= lambda_1))
+    
+  }
+}
+
+write_csv( trial_data,"trial_data_param_vary.csv")
+
+trial_data%>%
+  filter(t<25)%>%
+  group_by(t,beta,mu,init_infec)%>%
+  summarise(avg=mean(infect_share,na.rm=T))%>%
+  mutate(inital_frac=paste0("Initial Infection: ",init_infec),
+         mu_text=paste0("mu=",mu),
+         beta_text=paste0("beta=",beta),
+         prama=paste0(beta,",",mu))%>%
+  ggplot(aes(x=t,y=avg,color=as.factor(init_infec)))+
+  geom_line()+
+  facet_wrap(~ beta_text+mu_text)+
+  labs(x=TeX("Time $$(t)$$"),y=TeX("Infected Share $$i(t)$$",),
+       color=TeX("Initial infection ($i_0$)"),
+       title = TeX("Network SIS Dynamics varying $\\beta, \\mu$ and $i_0$"),
+       subtitle = TeX("ER network with $N=100$ and $\\langle k \\rangle =10$"))+
+  theme_bw()
 
