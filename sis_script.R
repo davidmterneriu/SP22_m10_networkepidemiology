@@ -245,3 +245,103 @@ trial_data%>%
   theme_bw()+
   scale_color_viridis_d()
 
+################################################################################
+# Scale Free Graph
+################################################################################
+
+scale_free_graph=sample_fitness_pl(
+  no.of.nodes=100,
+  no.of.edges=1000,
+  exponent.out=2.5)
+
+g=igraph::erdos.renyi.game(n=100,p.or.m = 0.2)
+# Extracting Largest Component 
+components <- igraph::clusters(g, mode="weak")
+biggest_cluster_id <- which.max(components$csize)
+vert_ids <- V(g)[components$membership == biggest_cluster_id]
+g1=igraph::induced_subgraph(g, vert_ids)
+mean(degree(g1))
+
+lambda_seq=data.frame(lambda=seq(0.01,0.40,length.out=40))%>%
+  mutate(beta=0.01,
+         mu=beta/lambda)
+
+
+
+scale_data=data.frame()
+er_data=data.frame()
+
+
+niter=50
+a1=tictoc::tic()
+for(k in 1:nrow(lambda_seq)){
+  
+  beta_k=lambda_seq$beta[k]
+  mu_k=lambda_seq$mu[k]
+  init_k=0.1
+  
+  for(i in 1:niter ){
+    print(paste0(k, "|| Trial: ",i))
+    g=igraph::erdos.renyi.game(n=100,p.or.m = 0.02)
+    
+    components <- igraph::clusters(g, mode="weak")
+    biggest_cluster_id <- which.max(components$csize)
+    
+    # ids
+    vert_ids <- V(g)[components$membership == biggest_cluster_id]
+    
+    # subgraph
+    g1=igraph::induced_subgraph(g, vert_ids)
+    adj_1=g1%>%as_adjacency_matrix()%>%as.matrix()
+    lambda_1=eigen(adj_1)$values%>%max()
+    
+    avg_k=mean(degree(g1))
+    avg_k2=mean(degree(g1)^2)
+    
+    #avg_k/avg_k2
+    
+    
+    
+    er_data=rbind(er_data,compartment_mod(G=g1,beta=  beta_k,mu= mu_k,
+                                                init_infec =   init_k)%>%
+                       mutate(trial=i,beta=  beta_k,mu= mu_k,
+                              init_infec =   init_k, lambda_1= lambda_1))
+    
+    
+    scale_free_graph=barabasi.game(100, power=2.5, directed=F)
+    
+    adj_1=scale_free_graph%>%as_adjacency_matrix()%>%as.matrix()
+    lambda_1=eigen(adj_1)$values%>%max()
+    
+    avg_k=mean(degree(scale_free_graph))
+    avg_k2=mean(degree(scale_free_graph)^2)
+    
+    scale_data=rbind(scale_data,compartment_mod(G=scale_free_graph,beta=  beta_k,mu= mu_k,
+                    init_infec =   init_k)%>%
+      mutate(trial=i,beta=  beta_k,mu= mu_k,
+             init_infec =   init_k, lambda_1= lambda_1))
+    
+  }
+}
+a2=tictoc::toc()
+
+write_csv(er_data,"lambda_er_data.csv")
+write_csv(scale_data,"lambda_scale_data.csv")
+
+
+compare_df=rbind(er_data%>%mutate(model="ER"),
+                 scale_data%>%mutate(model="Scale-Free"))%>%
+  group_by(model,beta,mu)%>%
+  filter(t>=80)%>%
+  summarise(infect=mean(infect_share,na.rm=T))%>%
+  ungroup()%>%
+  mutate(lambda=beta/mu)
+
+compare_df%>%
+  ggplot(aes(x=lambda,y=infect,color=model))+
+  geom_line()+
+  labs(x=TeX("$\\lambda$"),y=TeX("$i(\\infty)$"),color="Model")+
+  ggthemes::scale_color_calc()+
+  theme_classic()+
+  theme(legend.position = "top")
+
