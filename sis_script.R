@@ -340,7 +340,7 @@ compare_df=rbind(er_data%>%mutate(model="ER"),
 compare_df%>%
   ggplot(aes(x=lambda,y=infect,color=model))+
   geom_line()+
-  labs(x=TeX("$\\lambda$"),y=TeX("$i(\\infty)$"),color="Model")+
+  labs(x=TeX("$\\lambda$"),y=TeX("$i(\\lambda)$"),color="Model")+
   ggthemes::scale_color_calc()+
   theme_classic()+
   theme(legend.position = "top")
